@@ -9,7 +9,6 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
-from reportlab.graphics.shapes import Drawing, Rect, String
 
 # ==========================================
 # 1. CORE PUZZLE GENERATION LOGIC
@@ -41,7 +40,6 @@ class WordSearchBuilder:
 
         for word in cleaned_words:
             placed = False
-            # Try random positions & directions
             attempts = 0
             while attempts < 200 and not placed:
                 attempts += 1
@@ -53,7 +51,6 @@ class WordSearchBuilder:
                 c_end = c_start + (len(word) - 1) * dc
 
                 if 0 <= r_end < self.grid_size and 0 <= c_end < self.grid_size:
-                    # Check collision
                     can_place = True
                     coords = []
                     for i in range(len(word)):
@@ -90,7 +87,6 @@ def draw_pill(c, x1, y1, x2, y2, radius=8, stroke_color=colors.HexColor('#2E7D32
     c.setStrokeColor(stroke_color)
     c.setLineWidth(2.5)
 
-    # Calculate angle and distance
     dx = x2 - x1
     dy = y2 - y1
     length = math.hypot(dx, dy)
@@ -99,7 +95,6 @@ def draw_pill(c, x1, y1, x2, y2, radius=8, stroke_color=colors.HexColor('#2E7D32
     c.translate(x1, y1)
     c.rotate(angle)
 
-    # Draw capsule path
     p = c.beginPath()
     p.roundRect(-radius, -radius, length + (2 * radius), radius * 2, radius)
     c.drawPath(p, stroke=1, fill=0)
@@ -111,7 +106,6 @@ def generate_kdp_pdf(title, subtitle, builder, words, config, top_clipart=None, 
     page_w, page_h = 8.5 * inch, 11 * inch
     c = canvas.Canvas(buffer, pagesize=(page_w, page_h))
 
-    # Color Palette Parsing
     border_color = colors.HexColor(config['border_color'])
     title_color = colors.HexColor(config['title_color'])
 
@@ -121,13 +115,13 @@ def generate_kdp_pdf(title, subtitle, builder, words, config, top_clipart=None, 
         c.setStrokeColor(border_color)
         c.setLineWidth(4)
         c.roundRect(margin, margin, page_w - (2 * margin), page_h - (2 * margin), 12, stroke=1, fill=0)
-        
+
         # --- 2. HEADER SECTION ---
         header_top = page_h - 0.9 * inch
         
-        # Title (Dynamic font size to prevent overflow past borders)
+        # Dynamic title font size to prevent border overflow
         display_title = f"{title} (ANSWER KEY)" if is_answer_key else title
-        font_size = 18 if len(display_title) > 22 else 24
+        font_size = 16 if len(display_title) > 28 else (18 if len(display_title) > 22 else 24)
         
         c.setFont("Helvetica-Bold", font_size)
         c.setFillColor(title_color)
@@ -138,13 +132,13 @@ def generate_kdp_pdf(title, subtitle, builder, words, config, top_clipart=None, 
         c.setFillColor(colors.HexColor("#424242"))
         c.drawCentredString(page_w / 2.0, header_top - 18, subtitle)
 
-
         # --- 3. TOP-LEFT CLIPART ---
         if top_clipart:
             try:
                 img_w, img_h = 1.1 * inch, 1.1 * inch
-                c.drawImage(top_clipart, margin + 0.15 * inch, header_top - 35, width=img_w, height=img_h, mask='auto')
-            except Exception:
+                top_clipart.seek(0)
+                c.drawImage(top_clipart, margin + 0.15 * inch, header_top - 20, width=img_w, height=img_h, mask='auto')
+            except Exception as e:
                 pass
 
         # --- 4. PUZZLE GRID ---
@@ -161,9 +155,7 @@ def generate_kdp_pdf(title, subtitle, builder, words, config, top_clipart=None, 
         c.setLineWidth(0.8)
         
         for i in range(grid_size + 1):
-            # Vertical lines
             c.line(grid_left + i * cell_size, grid_top, grid_left + i * cell_size, grid_bottom)
-            # Horizontal lines
             c.line(grid_left, grid_bottom + i * cell_size, grid_left + grid_box_size, grid_bottom + i * cell_size)
 
         # Render Letters
@@ -173,9 +165,8 @@ def generate_kdp_pdf(title, subtitle, builder, words, config, top_clipart=None, 
         for r in range(grid_size):
             for col in range(grid_size):
                 char = builder.grid[r][col]
-                # Invert row index for PDF Cartesian coords (y starts at bottom)
                 x = grid_left + (col + 0.5) * cell_size
-                y = grid_top - (r + 0.5) * cell_size - 4  # Baseline adjustment
+                y = grid_top - (r + 0.5) * cell_size - 4
                 c.drawCentredString(x, y, char)
 
         # --- 5. ANSWER OVERLAYS (ONLY ON PAGE 2) ---
@@ -199,7 +190,6 @@ def generate_kdp_pdf(title, subtitle, builder, words, config, top_clipart=None, 
         c.setFillColor(title_color)
         c.drawString(margin + 0.4 * inch, bank_top, "WORD BANK:")
 
-        # Layout words into 3 clean columns
         cols = 3
         col_width = (page_w - (2 * margin) - 0.8 * inch) / cols
         c.setFont("Helvetica", 10)
@@ -219,11 +209,12 @@ def generate_kdp_pdf(title, subtitle, builder, words, config, top_clipart=None, 
         if bottom_clipart:
             try:
                 img_w, img_h = 1.2 * inch, 1.2 * inch
-                c.drawImage(bottom_clipart, page_w - margin - 1.3 * inch, margin + 0.15 * inch, width=img_w, height=img_h, mask='auto')
-            except Exception:
+                bottom_clipart.seek(0)
+                c.drawImage(bottom_clipart, page_w - margin - 1.35 * inch, margin + 0.15 * inch, width=img_w, height=img_h, mask='auto')
+            except Exception as e:
                 pass
 
-        c.showPage()  # Complete current page
+        c.showPage()
 
     c.save()
     buffer.seek(0)
@@ -270,7 +261,6 @@ with col1:
         height=220
     )
     
-    # Parse words input
     if "," in words_raw:
         parsed_words = [w.strip() for w in words_raw.split(",") if w.strip()]
     else:
@@ -284,7 +274,6 @@ with col2:
     
     if generate_btn or "generated_pdf" in st.session_state:
         if generate_btn:
-            # Run placement engine
             builder = WordSearchBuilder(
                 grid_size=grid_dim,
                 allow_backwards=allow_backwards,
@@ -295,9 +284,9 @@ with col2:
             if unplaced:
                 st.warning(f"⚠️ Could not fit {len(unplaced)} word(s) in grid: {', '.join(unplaced)}. Try increasing grid size.")
 
-            # Store graphics in memory
-            top_img = Image.open(top_clip) if top_clip else None
-            bot_img = Image.open(bottom_clip) if bottom_clip else None
+            # Store images as BytesIO streams safely for ReportLab
+            top_img = io.BytesIO(top_clip.getvalue()) if top_clip else None
+            bot_img = io.BytesIO(bottom_clip.getvalue()) if bottom_clip else None
 
             config = {
                 "border_color": border_color,
@@ -318,7 +307,6 @@ with col2:
             st.session_state["builder"] = builder
             st.session_state["words"] = parsed_words
 
-        # Show download options
         st.download_button(
             label="💾 Download Print-Ready KDP PDF (2 Pages)",
             data=st.session_state["generated_pdf"],
@@ -327,7 +315,6 @@ with col2:
             use_container_width=True
         )
 
-        # Quick preview of grid
         st.write("**Generated Matrix Preview (Puzzle Grid):**")
         builder_ref = st.session_state["builder"]
         grid_matrix = "\n".join([" ".join(row) for row in builder_ref.grid])
