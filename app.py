@@ -121,20 +121,23 @@ def generate_kdp_pdf(title, subtitle, builder, words, config, top_clipart=None, 
         c.setStrokeColor(border_color)
         c.setLineWidth(4)
         c.roundRect(margin, margin, page_w - (2 * margin), page_h - (2 * margin), 12, stroke=1, fill=0)
-
+        
         # --- 2. HEADER SECTION ---
         header_top = page_h - 0.9 * inch
         
-        # Title
-        c.setFont("Helvetica-Bold", 26)
-        c.setFillColor(title_color)
+        # Title (Dynamic font size to prevent overflow past borders)
         display_title = f"{title} (ANSWER KEY)" if is_answer_key else title
+        font_size = 18 if len(display_title) > 22 else 24
+        
+        c.setFont("Helvetica-Bold", font_size)
+        c.setFillColor(title_color)
         c.drawCentredString(page_w / 2.0, header_top, display_title.upper())
 
         # Subtitle / Instructions
-        c.setFont("Helvetica", 12)
+        c.setFont("Helvetica", 11)
         c.setFillColor(colors.HexColor("#424242"))
-        c.drawCentredString(page_w / 2.0, header_top - 20, subtitle)
+        c.drawCentredString(page_w / 2.0, header_top - 18, subtitle)
+
 
         # --- 3. TOP-LEFT CLIPART ---
         if top_clipart:
